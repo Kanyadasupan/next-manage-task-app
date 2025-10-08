@@ -2,23 +2,45 @@
 import Image from "next/image";
 import logo from "@/assets/work-order.png";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 
 
-//สร้างประเภทตัวแปลเพื่อเก็บข้อมูลที่ดึงมาจาก Supabase
 export default function Page() {
-
-  // router
+ const id = useParams().id;
 const router = useRouter();
 
+//ดึงข้อมูลจาก supabase เพื่อผูกกับข้อมูลที่เกิดขึ้น และบันทึกลงฐานข้อมูล
   const [title, setTitle] = useState<string>("");
   const [detail, setDetail] = useState<string>("");
   const [is_Completed, setIsCompleted] = useState<boolean>(false);
   const [image_File, setImageFile] = useState<File | null>(null);
   const [preview_File, setPreviewFile] = useState<string>("");
+  const [old_image_file, setOldImageFile] = useState<string>("");
+
+  useEffect(() => {
+    async function fetchData() {
+      const { data, error } = await supabase
+        .from("task_tb")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) {
+        alert("พบปัญหาในการดึงข้อมูลจาก");
+        console.log(error.message);
+        return;
+      }
+      setTitle(data.title);
+      setDetail(data.detail);
+      setIsCompleted(data.is_completed);
+      setPreviewFile(data.image_url);
+      setOldImageFile(data.image_url);
+    }
+    fetchData();
+  }, [id]);
 
 //เลือกรูปภาพและแสดงตัวอย่างรูปภาพ
   function handleSelecImagePreview(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,14 +51,31 @@ const router = useRouter();
       setPreviewFile(URL.createObjectURL(file as Blob));
     }
   }
-  
-//อัพโหลดรูปภาพและบันทึกข้อมูลลงฐานข้อมูลSupabase
-  async function handleUplodeAndSave(e: React.FormEvent<HTMLFormElement>) {
+
+//อัพโหลดรูปภาพและบันทึกแก้ไขข้อมูลลงฐานข้อมูลSupabase
+  async function handleUplodeAndUpdate(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    //อับโหลดรูปภาพ
     //สร้างตัวแปร image_url เพื่อเก็บ URL ของรูปภาพที่อัพโหลด เพื่อเอาไปบันทึกลงตาราง task_tb
     let image_url = "";
+
     // validate image file
     if (image_File) {
+      //ลบรูปออกจาก stroage (ถ้ามีรูป)
+      if (old_image_file != "") {
+        //เอาเฉพาะชื่อรูปจาก image_url เก็บในตัวแปล
+        const image_name = old_image_file.split("/").pop() as string;
+        //ลบรูปออกจาก storage
+        const {data, error } = await supabase.storage
+        .from("task_bk")
+        .remove([image_name]);
+        //ตรวจสอบ error
+        if (error) {
+          alert("พบปัญหาในการลบรูปภาพ");
+          console.log(error.message);
+          return;
+        }
+      }
       // if have image file, upload to supabase storage
       // named new file to avoid duplicate file name
       const new_image_file_name = `${Date.now()}-${image_File.name}`;
@@ -61,45 +100,42 @@ const router = useRouter();
         image_url = data.publicUrl;
       }
     }
-    const {data,error} = await supabase
-      .from('task_tb')
-      .insert({
+
+    //แก้ไขข้อมูลในตาราง บน Supabase
+    const { data, error } = await supabase
+      .from("task_tb")
+      .update({
         title: title,
         detail: detail,
         is_completed: is_Completed,
-        image_url: image_url
-      })
-
-      if(error){
-        alert('พบปัญหาในการบันทึกข้อมูล');
-        console.log(error.message);
-        return;
-      }else{
-        alert('บันทึกข้อมูลเรียบร้อยแล้ว');
-        //เคลียตัวแปร state ต่างๆให้เป็นค่าว่างเหมือนเดิม
-        setTitle("");
-        setDetail("");
-        setIsCompleted(false);
-        setImageFile(null);
-        setPreviewFile("");
-        image_url = "";
-        // redirect to all task page
-        router.push('/alltask');
+        image_url:image_url,
+        update_at : new Date().toISOString()
       }
-  
+      )
+      .eq("id", id)
+      //ตรวจสอบ error
+    if (error) {
+      alert("พบปัญหาในการแก้ไขข้อมูล");
+      console.log(error.message);
+      return;
+    } else {
+      alert("แก้ไขข้อมูลเรียบร้อยแล้ว");
+      router.push("/alltask");
+    }
   }
+  
 
   return (
     <div className="flex flex-col w-10/12 mx-auto mb-10">
-      <div className="flex flex-col items-center mt-20 ">
+      <div className="flex flex-col items-center mt-10 ">
         <Image src={logo} alt="Logo" width={100} height={100} />
         <h1 className="text-3xl font-bold mt-5">manage Task App</h1>
         <h1 className="text-3xl font-bold ">บันทึกงานที่ต้องทำ</h1>
       </div>
 
       <div className="w-full mx-w-lg border-2 border-gray-300 rounded-xl p-5 p-8 mt-10 space-y-6">
-        <h1 className="text-xl font-bold text-center">➕ เพิ่มงานใหม่</h1>
-        <form onSubmit={handleUplodeAndSave} className="mt-5">
+        <h1 className="text-xl font-bold text-center">✏️ แก้ไขงาน</h1>
+        <form onSubmit={handleUplodeAndUpdate} className="mt-5">
           <div className="mt-5 flex flex-col ">
             <label className="text-xl font-bold ">งานที่ทำ</label>
             <input
@@ -161,7 +197,7 @@ const router = useRouter();
 
           <div className="flex justify-center ">
             <button className="mt-5 bg-emerald-500 hover:bg-emerald-700 transition-all duration-300 text-white font-bold py-2 px-4 rounded  ">
-              บันทึกงาน
+              บันทึกแก้ไข
             </button>
           </div>
         </form>
