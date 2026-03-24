@@ -67,7 +67,9 @@ const router = useRouter();
         title: title,
         detail: detail,
         is_completed: is_Completed,
-        image_url: image_url
+        image_url: image_url,
+        created_at: new Date().toISOString(),
+        update_at: new Date().toISOString(),
       })
 
       if(error){
@@ -92,14 +94,14 @@ const router = useRouter();
   return (
     <div className="flex flex-col w-10/12 mx-auto mb-10">
       <div className="flex flex-col items-center mt-20 ">
-        <Image src={logo} alt="Logo" width={100} height={100} />
+        <Image src={logo} alt="Logo" width={100} height={100} priority />
         <h1 className="text-3xl font-bold mt-5">manage Task App</h1>
         <h1 className="text-3xl font-bold ">บันทึกงานที่ต้องทำ</h1>
       </div>
 
       <div className="w-full mx-w-lg border-2 border-gray-300 rounded-xl p-5 p-8 mt-10 space-y-6">
         <h1 className="text-xl font-bold text-center">➕ เพิ่มงานใหม่</h1>
-        <form onSubmit={handleUplodeAndSave} className="mt-5">
+        <form onSubmit={handleUplodeAndSave} className="mt-5" suppressHydrationWarning>
           <div className="mt-5 flex flex-col ">
             <label className="text-xl font-bold ">งานที่ทำ</label>
             <input

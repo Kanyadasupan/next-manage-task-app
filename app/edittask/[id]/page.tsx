@@ -17,7 +17,7 @@ const router = useRouter();
   const [detail, setDetail] = useState<string>("");
   const [is_Completed, setIsCompleted] = useState<boolean>(false);
   const [image_File, setImageFile] = useState<File | null>(null);
-  const [preview_File, setPreviewFile] = useState<string>("");
+  const [preview_File, setPreviewFile] = useState<string | null>(null);
   const [old_image_file, setOldImageFile] = useState<string>("");
 
   useEffect(() => {
